@@ -2,29 +2,32 @@
 Code status:
 ------------
 
-## DLMS (Distributed Ledger Management System)
+! dev_TrustSQLEnv is a source code package, download dev_TrustSQLEnv, if you don't need source code.  
 
-DLMS is an envrionment for deploy and use Distriuted Ledgers on TrustSQL.
-It consists of TOSS(Trusted Ordering-Stamping Server) , DNOM (Distributed Node Manager) and and demonstrations.
+## TrustSQLEnv (TrustSQL Environment)
 
-## TOSS 
-TOSS is single point of receipt for all user tranactions.
-It works as a total ordering broadcaster and also message server.
-Trusted means it includes singnature stamp of trusted authorigy.
+TrustSQLEnv is an envrionment for deploy and use Relational Distriuted Ledgers.  
+It consists of TOSS(Trusted Ordering-Stamping Server) , DNOM (Distributed Node Manager) and Demo Applications.  
 
-## DNOM 
-DNOM is an agent to subscribe messages from TOSS and insert it into TrustSQL.
+## TOSS (Trusted Ordering-Stamping Server) 
+TOSS is single point of receipt for all user tranactions.  
+It works as a total ordering broadcaster and also message server.  
+Trusted means it includes singnature stamp of trusted authorigy.  
 
-## demonstrations.
-You can find how it works and what can you do with it.
+## DNOM (Distributed Node Manager)  
+DNOM is an agent to subscribe messages from TOSS and insert it into TrustSQL.  
+
+## Demo Applications.  
+You can find how it works and what can you do with it.  
 
 
 Build:
 --------
 
 #### build path.
-If you download DLMS at dlms/dlms_work
-export RDLMSPATH=$HOME/dlms/rdlms_work
+#### set env path.
+If you download TrustSQLEnv at @HOME/TrustSQLEnv
+export RDLMSPATH=$HOME/TrustSQLEnv
 export RDLMSBIN=$RDLMSPATH/bin
 export PATH=$PATH:$RDLMSBIN
 
