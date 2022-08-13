@@ -147,6 +147,7 @@ public class ECDSAWallet {
          //System.out.println("@read encrypted_encoded_private_key="+ArrayUtil.toHex(this.encrypted_encoded_private_key));
          
          PublicKey publicKey = KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(this.encoded_public_key));
+         this.public_key = publicKey;
          this.account = ArrayUtil.toByte(ECDSA.getCompKey(publicKey));
       } catch (Exception e) {
          return null;
@@ -235,6 +236,29 @@ public class ECDSAWallet {
       }
    }
 
+   public PublicKey readPublicKey(String name) {
+      String fileName=null;
+      RandomAccessFile pubFile=null;
+
+      this.wallet_name=name;
+      try {
+         fileName = wallet_path+"/"+wallet_name+pub_file_ext;         
+         pubFile = new RandomAccessFile(fileName,"r");
+         this.encoded_public_key = new byte[(int)pubFile.length()];
+         pubFile.seek(0);
+         pubFile.read(this.encoded_public_key);         
+         
+         PublicKey publicKey = KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(this.encoded_public_key));         
+         return publicKey;
+      } catch (Exception e) {
+         return null;
+      } finally {
+         try {
+            if(pubFile!=null) pubFile.close();            
+         } catch (Exception e) {};         
+      }   
+   }
+
    public String sign(String inputs, String password) throws Exception {	 
 		Signature ecdsa;
 		byte[] realSig={0}; 
@@ -309,18 +333,39 @@ public class ECDSAWallet {
       return ArrayUtil.toHex(this.account);
    }
 
+   /*
    public String getPublicKey() {
       byte[] baPub = new byte[this.encoded_public_key.length-23];	
 		System.arraycopy(this.encoded_public_key,23,baPub,0,this.encoded_public_key.length-23);
       return ArrayUtil.toHex(baPub);
    }
-
+   */
+   public PublicKey getPublicKey() {
+      return this.public_key;
+   }
+   /*
    public String getPrivateKey(String password) {
       String ret=null;
 
       return ret;
    }
+   */
+   public PrivateKey getPrivateKey() {
+      return this.private_key;
+   }
+   
+   public String ecdhEncryption(PublicKey receiverPublicKey, String plainText) {
+      ECDHCrypto ecdh= new ECDHCrypto();            
+      String encryptedText = ArrayUtil.toHex(ecdh.encryption(new KeyPair(this.public_key,this.private_key), receiverPublicKey, plainText));      
+      return encryptedText;
+   }
 
+   public String ecdhDecryption(PublicKey senderPublicKey, String encryptedText) {
+      ECDHCrypto ecdh= new ECDHCrypto();            
+      
+      String decryptedText = ecdh.decryption(new KeyPair(this.public_key,this.private_key), senderPublicKey, ArrayUtil.toByte(encryptedText));
+      return decryptedText;
+   }
 
    public static void main(String args[]) {
       String walletName = "myWallet";

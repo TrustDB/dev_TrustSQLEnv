@@ -25,29 +25,30 @@ Build:
 --------
 
 #### build path.
-#### set env path.
-If you download TrustSQLEnv at @HOME/TrustSQLEnv
-export RDLMSPATH=$HOME/TrustSQLEnv
-export RDLMSBIN=$RDLMSPATH/bin
-export PATH=$PATH:$RDLMSBIN
+If you download dev_TrustSQLEnv at @HOME/dev_TrustSQLEnv  
+export RDLMSPATH=$HOME/dev_TrustSQLEnv  
+export RDLMSBIN=$RDLMSPATH/bin  
+export PATH=$PATH:$RDLMSBIN  
 
 #### compile
-./build.sh
+./build.sh  
 
 
 #### deploy.
-./deploy.sh
+./deploy.sh  
 
 
-Run:
+Run:  
 --------
 
-1. DNOM
-dnom_start.sh [config_file]
+1. DNOM  
+dnom [config_file]
 
 2. TOSS
-toss_start.sh [config_file]
+toss [config_file]
 
+3. Wallet
+wallet
 
 
 Who we are:

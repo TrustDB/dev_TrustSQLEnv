@@ -94,25 +94,29 @@ public class TokenIssuer {
 			System.out.println("Fail.. errorCode = "+errorCode);
 			return errorCode;
 		}
-		
+				
 		strStmt= "CREATE TRUSTED,ORDERED TABLE MEMBERSHIP_"+token_name+" ( \n";
-		strStmt += "TORDER_NUM BIGINT UNSIGNED NOT NULL, \n";										
-		strStmt += "TORDER_NONCE VARCHAR(16) NULL, \n";
-		strStmt += "USER_ID VARCHAR(40) NOT NULL, \n";						
-		strStmt += "USER_ACCOUNT VARCHAR(66), \n";
-		strStmt += "ISSUER_SIGN VARCHAR(160) NOT NULL, \n";
-		strStmt += "TORDER_TIME DATETIME NOT NULL, \n";
-		strStmt += "TORDER_SIGN VARCHAR(160) NOT NULL, \n";
-		strStmt += "CONSTRAINT UNIQUE(USER_ID), \n";
-		strStmt += "CONSTRAINT PRIMARY KEY(USER_ACCOUNT), \n";
-		strStmt += "CONSTRAINT SIGNATURE(ISSUER_SIGN) INPUTS(TORDER_NONCE,USER_ID,USER_ACCOUNT) VERIFY KEY TABLE_ISSUER, \n";		
-		strStmt += "CONSTRAINT SIGNATURE(TORDER_SIGN) ORDERED(TORDER_NUM) TIMED(TORDER_TIME) \n";
-		strStmt += ") ENGINE="+engine+" \n";
+		strStmt += "MEMBER_GID BIGINT UNSIGNED NOT NULL, \n";							
+		strStmt += "MEMBER_NONCE VARCHAR(16) NOT NULL, \n";
+		strStmt += "MEMBER_ID VARCHAR(40), \n";
+		strStmt += "MEMBER_ACCOUNT VARCHAR(66) NOT NULL, \n";
+		strStmt += "IVA_ACCOUNT VARCHAR(66) NOT NULL, \n";
+		strStmt += "IVA_SIGN VARCHAR(160) NOT NULL, \n";
+		strStmt += "TOSA_TIME DATETIME NOT NULL, \n";
+		strStmt += "TOSA_SIGN VARCHAR(160) NOT NULL, \n";
+		strStmt += "CONSTRAINT PRIMARY KEY(MEMBER_GID), \n";
+		strStmt += "CONSTRAINT UNIQUE(MEMBER_NONCE), \n";
+		strStmt += "CONSTRAINT UNIQUE(MEMBER_ID), \n";
+		strStmt += "CONSTRAINT UNIQUE(MEMBER_ACCOUNT), \n";
+		// TODO - IT's BETTER THAT the TORDER_NONCE is ONE OF INPUT FOR RECORD SIGN, BUT IN THIS CASE, THERE IS NO REGERATION ATTACK!
+		strStmt += "CONSTRAINT SIGNATURE(IVA_SIGN) INPUTS(MEMBER_ID,MEMBER_ACCOUNT) VERIFY KEY(IVA_ACCOUNT), \n";
+		strStmt += "CONSTRAINT SIGNATURE(TOSA_SIGN) ORDERED(MEMBER_GID) TIMED(TOSA_TIME) \n";
+		strStmt += ") ENGINE=InnoDB\n";
 		strStmt += "DSA_SCHEME='SECP256K1' \n";
 		strStmt += "TABLE_ISSUER_PUB_KEY='"+strIssuerPubKey+"' \n";		
 		strStmt += "TRUSTED_REFERENCE_PUB_KEY='"+strIssuerPubKey+"'\n";
 		strStmt += "TOSA_PUB_KEY='"+strOrdererPubKey+"'\n";
-		strStmt += "TOSA_MASTER_PUB_KEY='"+strOrdererPubKey+"'\n";
+		strStmt += "TOSA_MASTER_PUB_KEY='"+strOrdererPubKey+"'\n"; 			
 		strTransformed = ECDSA.transform_for_sign(strStmt);
 		strStmt += "TABLE_SCHEMA=\""+strTransformed+"\" ";
 		strStmt += "TABLE_SCHEMA_SIGN='"+walletManager.secureSign(issuer_wallet_name, strTransformed)+"'";
@@ -192,8 +196,8 @@ public class TokenIssuer {
 		strStmt += "CONSTRAINT PRIMARY KEY(TORDER_NUM), \n";
 		strStmt += "CONSTRAINT UNIQUE(TORDER_NONCE), \n";
 		strStmt += "CONSTRAINT FOREIGN KEY(MINTER_TX_ID) REFERENCES MINT_"+token_name+"(MINTER_TX_ID) , \n";		
-		strStmt += "CONSTRAINT FOREIGN KEY(SENDER) REFERENCES MEMBERSHIP_"+token_name+"(USER_ACCOUNT) , \n";		
-		strStmt += "CONSTRAINT FOREIGN KEY(RECEIVER) REFERENCES MEMBERSHIP_"+token_name+"(USER_ACCOUNT) , \n";		
+		strStmt += "CONSTRAINT FOREIGN KEY(SENDER) REFERENCES MEMBERSHIP_"+token_name+"(MEMBER_ACCOUNT) , \n";		
+		strStmt += "CONSTRAINT FOREIGN KEY(RECEIVER) REFERENCES MEMBERSHIP_"+token_name+"(MEMBER_ACCOUNT) , \n";		
 		strStmt += "CONSTRAINT SIGNATURE(SENDER_SIGN) INPUTS(TORDER_NONCE,MINTER_TX_ID,SENDER,AMOUNT,RECEIVER) VERIFY KEY(SENDER) , \n";
 		strStmt += "CONSTRAINT SIGNATURE(TORDER_SIGN) ORDERED(TORDER_NUM) TIMED(TORDER_TIME) \n";		
 		strStmt += ") ENGINE="+engine+" \n";
@@ -240,6 +244,46 @@ public class TokenIssuer {
 		return 0;
 	}
 
+	public static void registVerifiedMembers(String issuer_name, String service_name, String token_name, String iva_wallet_name, String wallet_name) {
+
+		WalletManager walletManager = new WalletManager();
+		String strStmt;
+		String strSignInput;
+		String serviceName;	
+		String strPubKey;
+		String strMemberAccount;
+		byte nonce[] = new byte[8];
+		SecureRandom random = new SecureRandom();		
+
+		strPubKey = walletManager.readWallet(iva_wallet_name);		
+		strMemberAccount = walletManager.readWallet(wallet_name);		
+	
+		DNOMConnector dnomConnector = new DNOMConnector(strDNOMAddress,Integer.parseInt(strDNOMPort));
+		if(!dnomConnector.open(DNOMConnector.NETWORK_TYPE_TEST, DNOMConnector.NETWORK_ID_BIGBLOCKS)) {
+			System.out.println("DNOM Connection Failed!Addr="+strDNOMAddress+"Port="+strDNOMPort);
+			return;
+		}
+
+		serviceName =issuer_name+"/"+service_name+"/"+"MEMBERSHIP_"+token_name;
+		try {
+			random.nextBytes(nonce);						
+			strSignInput = wallet_name+strMemberAccount; // SIGN INPUTS(MEMBER_NONCE, MEMBER_ID, MEMBER_ACCOUNT)	
+			strStmt= "INSERT INTO MEMBERSHIP_"+token_name+" (MEMBER_GID,MEMBER_NONCE,MEMBER_ID,MEMBER_ACCOUNT,IVA_ACCOUNT,IVA_SIGN,TOSA_TIME,TOSA_SIGN) VALUES ";
+			strStmt += "(@SYNC_ID,'"+ArrayUtil.toHex(nonce)+"','"+wallet_name+"','"+strMemberAccount+"','"+strPubKey+"','"+walletManager.secureSign(iva_wallet_name, strSignInput)+"',@DATETIME,@SYNC_SIGN);";
+			System.out.println(strStmt);
+			
+			byte[] baReturn = dnomConnector.transmit(DNOMConnector.TRANSACTION_TYPE_SYNC,serviceName,strStmt);
+			int errorCode = ArrayUtil.BAToInt(baReturn);
+			if(errorCode==0) {
+				System.out.println("Success!");
+			} else {
+				System.out.println("Fail.. errorCode = "+errorCode);
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+		} 
+		dnomConnector.close();
+	}
 
 	public static int insertUser(String issuer_name,String service_name, String token_name, String issuer_wallet_name, String user_wallet_name) {
 		WalletManager walletManager = new WalletManager();
@@ -270,7 +314,7 @@ public class TokenIssuer {
 			String str = ArrayUtil.toHex(nonce)+user_wallet_name+strPubKey;
 			str_issuer_sign = walletManager.secureSign(issuer_wallet_name, str);
 													
-			strStmt= "INSERT INTO MEMBERSHIP_"+token_name+" (TORDER_NUM,TORDER_NONCE,USER_ID,USER_ACCOUNT,ISSUER_SIGN,TORDER_TIME,TORDER_SIGN) ";
+			strStmt= "INSERT INTO MEMBERSHIP_"+token_name+" (TORDER_NUM,TORDER_NONCE,MEMBER_ID,MEMBER_ACCOUNT,ISSUER_SIGN,TORDER_TIME,TORDER_SIGN) ";
 			strStmt += "values (@SYNC_ID,'"+ArrayUtil.toHex(nonce)+"','"+user_wallet_name+"','"+strPubKey+"','"+str_issuer_sign+"',@DATETIME,@SYNC_SIGN);";
 			System.out.println(strStmt);
 			
@@ -385,6 +429,7 @@ public class TokenIssuer {
 		String token_name=null;
 		String issuer_wallet_name=null;
 		String tosa_wallet_name=null;
+		String iva_wallet_name=null;
 		String wallet_name=null;
 		String menu=null;
 		
@@ -454,16 +499,19 @@ public class TokenIssuer {
 
 					System.out.println("=> Enter the ISSUER's wallet name");
 					issuer_wallet_name = cons.readLine();
-					System.out.println("\n");
+					System.out.println("\n");					
 				}
-				while(true) {
-					System.out.println("=> Enter new User's wallet name registed to Membership ( go to back 'quit')");
-					// If the wallet is not exist, create.
+
+				System.out.println("=> Enter the IVA(Identity Verification Authority)'s wallet name  (goto back -> quit)");
+				iva_wallet_name = cons.readLine();					
+				System.out.println("\n");		
+				if(iva_wallet_name.equals("quit")) break;		
+				while(true) {				
+					System.out.println("=> Enter new MEMBER's wallet name (goto back -> quit)");
 					wallet_name = cons.readLine();
-					System.out.println("");									
-					if(wallet_name.equals("quit")) break;
-					insertUser(issuer_name,service_name, token_name, issuer_wallet_name, wallet_name);					
-					System.out.println("\n");
+					if(wallet_name.equals("quit")) break;		
+					registVerifiedMembers(issuer_name,service_name, token_name,iva_wallet_name, wallet_name);
+					System.out.println("\n");		
 				}
 			} else if(menu.equals("2")) {
 				if(issuer_name==null) {

@@ -130,6 +130,37 @@ public class WalletManager {
         return strSign;
     }
     
+
+    /**
+     * ECDH AES256 Encryption
+     * @param senderWalletName
+     * @param receiverWalletName
+     * @param plainText
+     * @return encryptedText
+     */
+    public String ecdhEncryption(String senderWalletName, String receiverWalletName, String plainText) {
+        ECDSAWallet senderWallet = hmAllWallets.get(senderWalletName);
+        ECDSAWallet receiverWallet = hmAllWallets.get(receiverWalletName);
+
+        String encryptedText = senderWallet.ecdhEncryption(receiverWallet.getPublicKey(), plainText);
+        return encryptedText;
+    }
+
+    /**
+     * ECDH AES256 Decryption
+     * @param receiverWalletName
+     * @param receiverWalletName
+     * @param plainText
+     * @return encryptedText
+     */
+    public String ecdhDecryption(String receiverWalletName, String senderWalletName, String encryptedText) {
+        ECDSAWallet senderWallet = hmAllWallets.get(senderWalletName);
+        ECDSAWallet receiverWallet = hmAllWallets.get(receiverWalletName);
+        String decryptedText = receiverWallet.ecdhDecryption(senderWallet.getPublicKey(), encryptedText);
+        return decryptedText;
+    }
+
+
     public static void main(String args[]) {
         String name, password;
         Console cons = System.console();                
@@ -147,17 +178,18 @@ public class WalletManager {
             System.out.println("\n\n");
                     
             System.out.println("\n");
-            System.out.println("Waht do you want to do ? ( 0: Generate a new wallet  1: Read Wallet )");
+            System.out.println("Waht do you want to do ? ( 0:Generate a new wallet  1:Read Wallet  2:ECDH Encryption/Decryption )");
             mission = cons.readLine();
             
             if(mission.equals("0")) {	
                 while(true) {							
+                    System.out.println("");
                     System.out.println("Enter the name of a new wallet (got to back 'quit')"); 
                     name = cons.readLine();                                        
                     if(name.equals("quit")) break;		
                     if(name.equals("")) continue;
+                    System.out.println("");
                                
-                    System.out.println("\n");
                     System.out.println("Enter password to secure the wallet");                                         
                     password = new String(cons.readPassword());
                                     
@@ -175,7 +207,7 @@ public class WalletManager {
                         System.out.println("Fail to generate a new wallet!");    
                         System.out.println(e.getMessage());
                     }
-                    
+                    System.out.println("");
                     System.out.println("Wallet ["+name+"] generated successfully!");
                     System.out.println("");
                 }
@@ -200,7 +232,72 @@ public class WalletManager {
                     }                    
                     System.out.println("Wallet ["+name+"] has account ="+account);
                     System.out.println("");
-                }		
+                }	
+            } else if(mission.equals("2")) {
+                while(true) {		
+                    String encryptorWalletName;
+                    String decryptorWalletName;
+
+                    String enc_dec=null;
+                    System.out.println("");
+                    System.out.println("What do you want ? ( 1:ECDH Encryption  2:ECDH Decryption   Others: got to back )"); 
+                    enc_dec = cons.readLine();        
+                    System.out.println("");
+                    WalletManager wManager = new WalletManager();                    
+                    if(enc_dec.equals("1")) {
+                        System.out.println("Enter encryptor's wallet name  (got to back 'quit')");     
+                        encryptorWalletName = cons.readLine();
+                        if(encryptorWalletName.equalsIgnoreCase("quit")) break;		
+                        
+                        System.out.println("");
+                        System.out.println("Enter password of the wallet");                                         
+                        password = new String(cons.readPassword());
+                                        
+                        wManager.readWallet(encryptorWalletName, password);
+                        System.out.println("");
+                        System.out.println("Enter the decryptor's wallet name (got to back 'quit')");     
+                        decryptorWalletName = cons.readLine();                                        
+                        if(decryptorWalletName.equalsIgnoreCase("quit")) break;	
+                        
+                        wManager.readWallet(decryptorWalletName);
+                        String plainText;
+                        System.out.println("");
+                        System.out.println("Enter text you want to encrypt (got to back 'quit')");     
+                        plainText = cons.readLine();       
+                        if(plainText.equalsIgnoreCase("quit")) break;	       
+                        
+                        String ecnryptedText = wManager.ecdhEncryption(encryptorWalletName,decryptorWalletName,plainText);
+                        System.out.println("encrypted Text = "+ecnryptedText);     
+                    } else if(enc_dec.equals("2")) {                        
+                        System.out.println("Enter the decryptor wallet name (got to back 'quit')");     
+                        decryptorWalletName = cons.readLine();
+                        if(decryptorWalletName.equalsIgnoreCase("quit")) break;		
+                        
+                        System.out.println("");
+                        System.out.println("Enter password of the wallet");                                         
+                        password = new String(cons.readPassword());
+                                        
+                        wManager.readWallet(decryptorWalletName, password);
+
+                        System.out.println("");
+                        System.out.println("Enter encryptor's wallet name  (got to back 'quit')");     
+                        encryptorWalletName = cons.readLine();                                        
+                        if(encryptorWalletName.equalsIgnoreCase("quit")) break;	
+                        
+                        wManager.readWallet(encryptorWalletName);
+                        String encryptedText;
+                        System.out.println("");
+                        System.out.println("Enter text you want to decrypt (got to back 'quit')");     
+                        encryptedText = cons.readLine();       
+                        if(encryptedText.equalsIgnoreCase("quit")) break;	       
+                        
+                        String decryptedText = wManager.ecdhDecryption(decryptorWalletName,encryptorWalletName,encryptedText);
+                        System.out.println("encrypted Text = "+decryptedText);    
+                    } else {
+                        break;
+                    }
+                }    	
+                continue;
             } else if(mission.equals("999")) {    
                 System.out.println("How many wallets you want to make? password is \"test\""); 
                 String countStr = cons.readLine();                
