@@ -17,6 +17,8 @@ package org.rdlms.wallet;
 
 import java.io.File;
 import java.io.RandomAccessFile;
+import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -25,6 +27,10 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
@@ -32,8 +38,8 @@ import org.rdlms.crypto.ECDSA;
 import org.rdlms.util.ArrayUtil;
 
 public class ECDSAWallet {
-   private byte[] encoded_public_key=null;
-   private byte[] encoded_private_key=null;
+   public byte[] encoded_public_key=null;
+   public byte[] encoded_private_key=null;
    private byte[] encrypted_encoded_private_key=null;
    private byte[] account=null; // account is compressed publicKey   
    private PublicKey public_key=null;
@@ -44,6 +50,7 @@ public class ECDSAWallet {
    final String encprv_file_ext=".encprv";
    final String wallet_version="org.rdlms.wallet.ECDSAWallet v0.0.1";
 
+   
    /**	
 	* Generate a key pair 
 	* @param	String name : wallet name
@@ -168,7 +175,6 @@ public class ECDSAWallet {
    public String read(String name, String password) {
       String fileName=null;
       RandomAccessFile pubFile=null,encPrvFile=null;
-
       this.wallet_name=name;
       try {
          fileName = wallet_path+"/"+wallet_name+pub_file_ext;         
@@ -176,19 +182,27 @@ public class ECDSAWallet {
          this.encoded_public_key = new byte[(int)pubFile.length()];
          pubFile.seek(0);
          pubFile.read(this.encoded_public_key);
+         //System.out.println("@read encoded_public_key="+ArrayUtil.toHex(this.encoded_public_key));
          
+         byte[] pubBytes = new byte[this.encoded_public_key.length-23];
+         System.arraycopy(this.encoded_public_key,23,pubBytes,0,this.encoded_public_key.length-23);
+         //System.out.println("@public_key="+ArrayUtil.toHex(pubBytes));
+
          fileName = wallet_path+"/"+wallet_name+encprv_file_ext;
          encPrvFile = new RandomAccessFile(fileName,"rw");
          encrypted_encoded_private_key = new byte[(int)encPrvFile.length()];         
          encPrvFile.seek(0);
          encPrvFile.read(this.encrypted_encoded_private_key);
-         //System.out.println("@read encrypted_encoded_private_key="+ArrayUtil.toHex(this.encrypted_encoded_private_key));
          
          this.encoded_private_key = ECDSA.aes256_decrypt(password, this.encrypted_encoded_private_key);
+         
          this.private_key = KeyFactory.getInstance("EC").generatePrivate(new PKCS8EncodedKeySpec(this.encoded_private_key));
-
+         
          this.public_key = KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(this.encoded_public_key));
          this.account = ArrayUtil.toByte(ECDSA.getCompKey(this.public_key));
+
+         //System.out.println("@account(compressed public key) ="+ArrayUtil.toHex(this.account));
+
       } catch (Exception e) {
          e.printStackTrace();
          return null;
@@ -354,6 +368,34 @@ public class ECDSAWallet {
       return this.private_key;
    }
    
+   public static PublicKey buildPublicKey(byte[] ck) {
+      byte[] dk = ECDSA.decompressPubkey(ck);
+		byte[] bx = new byte[32];
+		byte[] by = new byte[32];
+
+		//System.out.println("CompKey = "+ArrayUtil.toHex(ck));
+		//System.out.println("Decompressed Key = "+ArrayUtil.toHex(dk));
+		System.arraycopy(dk,1,bx,0,32);
+		//System.out.println("Point X = "+ArrayUtil.toHex(bx));
+		System.arraycopy(dk,33,by,0,32);
+		//System.out.println("Point Y = "+ArrayUtil.toHex(by));
+
+		ECPoint ecPoint = new ECPoint(new BigInteger(bx), new BigInteger(by));
+		try {
+			AlgorithmParameters parameters = AlgorithmParameters.getInstance("EC");
+			parameters.init(new ECGenParameterSpec("secp256k1"));		
+			ECParameterSpec ecParameters = parameters.getParameterSpec(ECParameterSpec.class);
+			ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(ecPoint, ecParameters);         
+
+			PublicKey key = KeyFactory.getInstance("EC").generatePublic(pubKeySpec);
+         //System.out.println("Encoded Public Key 1 = "+ArrayUtil.toHex(key.getEncoded()));
+			return key;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+      return null;
+   }
+
    public String ecdhEncryption(PublicKey receiverPublicKey, String plainText) {
       ECDHCrypto ecdh= new ECDHCrypto();            
       String encryptedText = ArrayUtil.toHex(ecdh.encryption(new KeyPair(this.public_key,this.private_key), receiverPublicKey, plainText));      

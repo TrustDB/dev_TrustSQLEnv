@@ -25,6 +25,8 @@ import java.nio.charset.StandardCharsets;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+
+import java.util.Arrays;
 import java.util.Base64;
 import org.rdlms.util.ArrayUtil;
 
@@ -86,10 +88,56 @@ public class ECDSA {
 		} else {
 			compressedPubStr = "03"+compressedPubStr;
 		}
-		
 		return compressedPubStr;
 	}	
 
+	
+
+	static final BigInteger MODULUS =
+    new BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16);
+	static final BigInteger CURVE_A = new BigInteger("0");
+	static final BigInteger CURVE_B = new BigInteger("7");
+
+
+// Given a 33-byte compressed public key, this returns a 65-byte uncompressed key.
+	public static byte[] decompressPubkey(byte[] compKey) {
+		// Check array length and type indicator byte
+		if (compKey.length != 33 || compKey[0] != 2 && compKey[0] != 3)
+			throw new IllegalArgumentException();
+
+		final byte[] xCoordBytes = Arrays.copyOfRange(compKey, 1, compKey.length);
+		final BigInteger xCoord = new BigInteger(1, xCoordBytes);  // Range [0, 2^256)
+		
+		BigInteger temp = xCoord.pow(2).add(CURVE_A);
+		temp = temp.multiply(xCoord);
+		temp = sqrtMod(temp.add(CURVE_B));		
+		boolean tempIsOdd = temp.testBit(0);
+		boolean yShouldBeOdd = compKey[0] == 3;
+		if (tempIsOdd != yShouldBeOdd)
+			temp = temp.negate().mod(MODULUS);
+		final BigInteger yCoord = temp;
+
+		// Copy the x coordinate into the new
+		// uncompressed key, and change the type byte
+		byte[] result = Arrays.copyOf(compKey, 65);
+		result[0] = 4;
+
+		// Carefully copy the y coordinate into uncompressed key
+		final byte[] yCoordBytes = yCoord.toByteArray();
+		for (int i = 0; i < 32 && i < yCoordBytes.length; i++)
+			result[result.length - 1 - i] = yCoordBytes[yCoordBytes.length - 1 - i];
+
+		return result;
+	}
+
+	// Given x, this returns a value y such that y^2 % MODULUS == x.
+	public static BigInteger sqrtMod(BigInteger value) {
+		assert (MODULUS.intValue() & 3) == 3;
+		BigInteger pow = MODULUS.add(BigInteger.ONE).shiftRight(2);
+		BigInteger result = value.modPow(pow, MODULUS);
+		assert result.pow(2).mod(MODULUS).equals(value);
+		return result;
+	}
 	
 	public static String transform_for_sign(String inputs) {
 		String retstr;

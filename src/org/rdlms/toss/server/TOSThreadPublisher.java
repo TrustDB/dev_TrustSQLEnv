@@ -402,7 +402,7 @@ class TOSThreadPublisher extends Thread{
 			long newOrderInService=0;
 			ServiceOrderInfo serviceOrderInfo=null;
 
-			TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) hmAllTopicsConfig.get(globalServiceName);
+			TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) hmAllTopicsConfig.get(globalServiceName.toLowerCase());
 			if(serviceConfig==null) {
 				log.error("Not registed Service to ServiceConfig! : "+globalServiceName);
 				// TODO RESPONSE to CLIENT !!!
@@ -410,7 +410,7 @@ class TOSThreadPublisher extends Thread{
 			}
 			
 			TOSTransaction tosTransaction;	
-			serviceOrderInfo = (ServiceOrderInfo) hmAllServiceOrderInfo.get(globalServiceName);
+			serviceOrderInfo = (ServiceOrderInfo) hmAllServiceOrderInfo.get(globalServiceName.toLowerCase());
 			if(serviceOrderInfo==null) {
 				log.error("Not registed Service to HashMap! : "+globalServiceName);
 				// TODO RESPONSE to CLIENT !!! 
@@ -435,6 +435,7 @@ class TOSThreadPublisher extends Thread{
 				if (!MessageManager.saveTranaction(log, tossConfig.tossParameters.dataFolderPath, tossConfig.tossParameters.dataFileSizeMB, hmAllFilesRW, tosTransaction)) {						
 					Assert.assertTrue(true,"Transaction can't be saved !!");
 				}
+				log.trace("Stamped Transaction = "+tosTransaction.stamped_transaction);
 			//	log.debug("aft_msgTODisk");
 	
 				// !!! After sign and save, increase last order in memory
@@ -511,7 +512,7 @@ class TOSThreadPublisher extends Thread{
 		//log.debug("GetServiceInfo ServiceName="+serviceName);	  		
 		//System.out.println("GetServiceInfo ServiceName="+serviceName);
 					
-		TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) tosServer.hmAllTopicsConfig.get(serviceName);
+		TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) tosServer.hmAllTopicsConfig.get(serviceName.toLowerCase());
 		
 		if(serviceConfig==null) {
 			// TODO check  Whether ASSERT or Not..

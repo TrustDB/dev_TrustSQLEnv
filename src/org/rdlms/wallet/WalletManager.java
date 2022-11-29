@@ -16,7 +16,11 @@
 package org.rdlms.wallet;
 
 import java.io.Console;
+import java.security.PublicKey;
 import java.util.HashMap;
+
+import org.rdlms.crypto.ECDSA;
+import org.rdlms.util.ArrayUtil;
 
 public class WalletManager {
     private HashMap<String,ECDSAWallet> hmAllWallets = new HashMap<String,ECDSAWallet>();
@@ -30,13 +34,12 @@ public class WalletManager {
         ECDSAWallet wallet; 
         String account;
 
-        wallet= new ECDSAWallet();
-        account = wallet.read(walletName);
-
-        
         if(hmAllWallets.containsKey(walletName)) {
-            hmAllWallets.replace(walletName, wallet);
+            wallet = hmAllWallets.get(walletName);
+            account = wallet.read(walletName);
         } else {
+            wallet= new ECDSAWallet();
+            account = wallet.read(walletName);            
             hmAllWallets.put(walletName, wallet);
         }
         
@@ -54,14 +57,15 @@ public class WalletManager {
         ECDSAWallet wallet; 
         String account;
 
-        wallet= new ECDSAWallet();
-        account = wallet.read(walletName, password);
-
         if(hmAllWallets.containsKey(walletName)) {
-            hmAllWallets.replace(walletName, wallet);
+            wallet = hmAllWallets.get(walletName);
+            account = wallet.read(walletName);
         } else {
+            wallet= new ECDSAWallet();
+            account = wallet.read(walletName, password);
             hmAllWallets.put(walletName, wallet);
-        }
+        }    
+
         return account;
     }
 
@@ -160,6 +164,12 @@ public class WalletManager {
         return decryptedText;
     }
 
+    public String ecdhDecryption(String receiverWalletName, PublicKey senderPubKey, String encryptedText) {
+        ECDSAWallet receiverWallet = hmAllWallets.get(receiverWalletName);
+        String decryptedText = receiverWallet.ecdhDecryption(senderPubKey, encryptedText);
+        return decryptedText;
+    }
+
 
     public static void main(String args[]) {
         String name, password;
@@ -224,14 +234,17 @@ public class WalletManager {
                     System.out.println("\n");
                 
                     ECDSAWallet wallet = new ECDSAWallet();
-                    String account = wallet.read(name);
+                    String account = wallet.read(name, password);
 
                     if(account==null) {
                         System.out.println("Fail to read the wallet");
                         break;
                     }                    
                     System.out.println("Wallet ["+name+"] has account ="+account);
-                    System.out.println("");
+                    System.out.println("Encoded Public Key ="+ArrayUtil.toHex(wallet.encoded_public_key));
+
+                    PublicKey pubK = ECDSAWallet.buildPublicKey(ArrayUtil.toByte(account));                    
+                    System.out.println("Public Key Encoded = "+ArrayUtil.toHex(pubK.getEncoded()));
                 }	
             } else if(mission.equals("2")) {
                 while(true) {		

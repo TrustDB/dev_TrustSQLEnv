@@ -129,7 +129,7 @@ public class PublicDNOM {
 				sc.tossAddrs = (String) topicObj.get("tossAddrs");
 				sc.rdlmsAddrs = (String) topicObj.get("rdlmsAddrs");
 				
-				hmAllServicesConfig.put(sc.serviceName, sc);
+				hmAllServicesConfig.put(sc.serviceName.toLowerCase(), sc);
 		  }			  				  		  
 		} catch(Exception e) {
 			e.printStackTrace();			
@@ -213,10 +213,10 @@ public class PublicDNOM {
 
 				log.info("Service "+globalServiceName+" TOSServer : "+tossAddrs);
 
-				// 1. get ServiceInfo from TOBB
+				// 1. get ServiceInfo from TOSS
 				TOSSConnector.ServiceInfo serviceInfo = ttobConnector.getServiceInfo(globalServiceName);
-				if(serviceInfo.tableName.length ==0) {
-					log.info(globalServiceName+" has no tables");
+				if(serviceInfo ==null) {
+					log.info(globalServiceName+" not supported !");
 					continue;
 				}
 											

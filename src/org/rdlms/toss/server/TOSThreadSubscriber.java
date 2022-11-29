@@ -402,7 +402,7 @@ class TOSThreadSubscriber extends Thread{
 			long newOrderInService=0;
 			ServiceOrderInfo serviceOrderInfo=null;
 
-			TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) hmAllTopicsConfig.get(globalServiceName);
+			TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) hmAllTopicsConfig.get(globalServiceName.toLowerCase());
 			if(serviceConfig==null) {
 				log.error("Not registed Service to ServiceConfig! : "+globalServiceName);
 				// TODO RESPONSE to CLIENT !!!
@@ -500,18 +500,18 @@ class TOSThreadSubscriber extends Thread{
 	**/
 	public boolean commandGetServiceInfo(byte[] baPayload) {
 		//System.out.println("RECV [GetServiceInfo]-------------------------------------");
-		// Payload : ServiceName (U2+CHAR) 
-		log.debug("COMMAND [GetServiceInfo] "+remoteAddress);
-
+		// Payload : ServiceName (U2+CHAR) 		
 		short serviceNameLen = (short)ArrayUtil.BAToShort(baPayload,0);
 		byte[] baServiceName = new byte[serviceNameLen];
 		System.arraycopy(baPayload,2,baServiceName,0,serviceNameLen);
 				
 		String serviceName = new String(baServiceName);
+		log.debug("COMMAND [GetServiceInfo] "+serviceName+"\t"+remoteAddress);
+
 		//log.debug("GetServiceInfo ServiceName="+serviceName);	  		
 		//System.out.println("GetServiceInfo ServiceName="+serviceName);
 					
-		TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) ttobServer.hmAllTopicsConfig.get(serviceName);
+		TOSServer.ServiceConfig serviceConfig = (TOSServer.ServiceConfig) ttobServer.hmAllTopicsConfig.get(serviceName.toLowerCase());
 		
 		if(serviceConfig==null) {
 			// TODO check  Whether ASSERT or Not..
@@ -638,7 +638,7 @@ class TOSThreadSubscriber extends Thread{
 
 	public boolean commandGetTransactions(byte[] baPayload) {	
 		
-		//log.debug("RECV [GetTransactions] "+remoteAddress);
+		log.trace("RECV [GetTransactions] "+remoteAddress);
 
 		// Payload : ServiceName (U2+CHAR) 
 		short fullTopicLen = (short)ArrayUtil.BAToShort(baPayload,0);		
@@ -659,19 +659,19 @@ class TOSThreadSubscriber extends Thread{
 
 		String globalServiceName = tokenArr[0]+"/"+tokenArr[1];
 		String serviceName = tokenArr[1];		
-		//System.out.println("\t@P1 FullTopicStr="+fullTopicStr);			
+		System.out.println("\t@P1 FullTopicStr="+fullTopicStr);			
 		long fromOrder = ArrayUtil.BAToLong(baPayload,2+fullTopicLen);
-		//System.out.println("\t@P2 From Order="+fromOrder);
+		System.out.println("\t@P2 From Order="+fromOrder);
 		long toOrder = ArrayUtil.BAToLong(baPayload,2+fullTopicLen+8);
-		//System.out.println("\t@P3 To Order="+toOrder);
-		//System.out.println("-----------------------------------------------------------");
+		System.out.println("\t@P3 To Order="+toOrder);
+		System.out.println("-----------------------------------------------------------");
 
 		// 1. Check the Topic has transactions
 		ServiceOrderInfo serviceOrderInfo = ttobServer.hmAllServiceOrderInfo.get(globalServiceName);		
 		if(serviceOrderInfo==null) {
-			//System.out.println(" ConcurrentHashMap .. - "+fullTopicStr);							
-			//System.out.println("SEND [Transactions]----------------------------------------");
-			//System.out.println("\t No Data!");
+			System.out.println(" ConcurrentHashMap .. - "+fullTopicStr);							
+			System.out.println("SEND [Transactions]----------------------------------------");
+			System.out.println("\t No Data!");
 			responseTransactionHeader(0);			
 			return true;						
 		} 
@@ -679,9 +679,9 @@ class TOSThreadSubscriber extends Thread{
 		// 2. Check the topic has transactios 2
 		ConcurrentHashMap<String,Long> hmTableOrders = serviceOrderInfo.hm_table_orders;
 		if(hmTableOrders.size()==0) {
-			//System.out.println(" ConcurrentHashMap .. - "+fullTopicStr);							
-			//System.out.println("SEND [Transactions]----------------------------------------");
-			//System.out.println("\t No Data!");
+			System.out.println(" ConcurrentHashMap .. - "+fullTopicStr);							
+			System.out.println("SEND [Transactions]----------------------------------------");
+			System.out.println("\t No Data!");
 			responseTransactionHeader(0);						
 			return true;						
 		}
@@ -714,7 +714,7 @@ class TOSThreadSubscriber extends Thread{
 				responseTransactionHeader(0);						
 				return true;						
 			} else {																
-				//log.debug("TO sent Message Numbers = "+(lastOrderInService-fromOrder));
+				log.debug("TO sent Message Numbers = "+(lastOrderInService-fromOrder));
 				log.debug("RESP [GetTransactions] n("+(lastOrderInService-fromOrder)+") f("+fromOrder+") t("+lastOrderInService+")");
 				responseTransactionHeader((int)(lastOrderInService-fromOrder));
 				short fileNo;
@@ -729,7 +729,7 @@ class TOSThreadSubscriber extends Thread{
 					fileNo = (short)((i / ServiceOrder.MAX_RECORDS_IN_ORDER_SERVICE)+1);
 					// ./data/www.trustedhotel.com/p2pcashsystem/p2pcashsystem_#0001.ois
 					fileName = tossConfig.tossParameters.dataFolderPath+"/"+globalServiceName+"/"+serviceName+"_#"+String.format("%05d",fileNo)+".ois";					
-					//System.out.println("\t read order_in_service from file="+fileName);				
+					System.out.println("\t read order_in_service from file="+fileName);				
 					oisFile = (RandomAccessFile) hmAllFilesR.get(fileName);
 					if(oisFile==null) {		
 						try {
@@ -743,7 +743,7 @@ class TOSThreadSubscriber extends Thread{
 					}	
 					
 					recordOffset = (long)((i-1) % ServiceOrder.MAX_RECORDS_IN_ORDER_SERVICE)*ServiceOrder.RECORD_SIZE;
-					//log.trace("ois index="+i+" record offset = "+recordOffset);					
+					log.trace("ois index="+i+" record offset = "+recordOffset);					
 					byte[] baOrderRecord = new byte[80];	// primitive arrays default 0	
 					oisFile.seek(recordOffset);
 					oisFile.read(baOrderRecord);					
@@ -752,7 +752,7 @@ class TOSThreadSubscriber extends Thread{
 					long	orderInService;
 					System.arraycopy(baOrderRecord,0,baOrderInService,0,8);
 					orderInService = ArrayUtil.BAToLong(baOrderInService);
-					//log.trace("OIS file order="+i+"  recordOffset="+recordOffset+" orderInService="+orderInService);
+					log.trace("OIS file order="+i+"  recordOffset="+recordOffset+" orderInService="+orderInService);
 
 					while(recordOffset!=0 & orderInService==0) {
 						log.trace("ois is 0 wait write finished!");
@@ -786,8 +786,8 @@ class TOSThreadSubscriber extends Thread{
 					orderInTable = ArrayUtil.BAToLong(baOrderRecord,64+8);
 					
 					tableName = new String(baTableName).trim();
-					//log.trace("get Transaction OIS="+i+" OIT="+orderInTable+" tableName="+tableName);
-					//System.out.println("get Transaction OIS="+i+" OIT="+orderInTable+" tableName="+tableName);
+					log.trace("get Transaction OIS="+i+" OIT="+orderInTable+" tableName="+tableName);
+					System.out.println("get Transaction OIS="+i+" OIT="+orderInTable+" tableName="+tableName);
 					
 					// 3.1.2 find oit recrod to get transactio
 					fileNo = (short)((orderInTable / TableOrder.MAX_RECORDS_IN_ORDER_TABLE)+1);
@@ -858,10 +858,10 @@ class TOSThreadSubscriber extends Thread{
 					// 3.1.4 response 
 					// 1. gt_name
 					String gt_name=globalServiceName+"/"+tableName;
-					//System.out.println("gt_name.length="+(short)gt_name.getBytes().length);
+					System.out.println("gt_name.length="+(short)gt_name.getBytes().length);
 					write(ArrayUtil.shortToBA((short)gt_name.getBytes().length));
 					write(gt_name.getBytes());
-					//System.out.println("gt_name="+gt_name);
+					System.out.println("gt_name="+gt_name);
 					// 2. order_in_service
 					baOrderInService = new byte[8];
 					datFile.read(baOrderInService);
@@ -899,9 +899,9 @@ class TOSThreadSubscriber extends Thread{
 					write(baStampedTransactionLen);
 					byte[] baStampedTransaction = new byte[ArrayUtil.BAToShort(baStampedTransactionLen)];
 					datFile.read(baStampedTransaction);
-					//System.out.println("StampedTransaction.length="+baStampedTransaction.length);					
+					System.out.println("StampedTransaction.length="+baStampedTransaction.length);					
 					write(baStampedTransaction);
-					//log.trace("StampedTrasaction="+new String(baStampedTransaction));
+					log.trace("StampedTrasaction="+new String(baStampedTransaction));
 
 					// 5. tosa_account
 					byte[] baTosaAccountLen = new byte[2];
@@ -910,7 +910,7 @@ class TOSThreadSubscriber extends Thread{
 					byte[] baTosaAccount = new byte[ArrayUtil.BAToShort(baTosaAccountLen)];
 					datFile.read(baTosaAccount);
 					write(baTosaAccount);
-					//log.trace("tosa_account="+new String(baTosaAccount));
+					log.trace("tosa_account="+new String(baTosaAccount));
 					// 6. tosa_sign
 					byte[] baTosaSignLen = new byte[2];
 					datFile.read(baTosaSignLen);
@@ -918,10 +918,10 @@ class TOSThreadSubscriber extends Thread{
 					byte[] baTosaSign = new byte[ArrayUtil.BAToShort(baTosaSignLen)];
 					datFile.read(baTosaSign);
 					write(baTosaSign);
-					//log.trace("tosa_sign="+new String(baTosaSign));
+					log.trace("tosa_sign="+new String(baTosaSign));
 				}
-				//log.debug("TO sent finished!  = "+fullTopicStr);
-				//System.out.println("TO sent finished!  = "+fullTopicStr);
+				log.debug("TO sent finished!  = "+fullTopicStr);
+				System.out.println("TO sent finished!  = "+fullTopicStr);
 			}
 			RandomAccessFile closeFile=null;
 			Iterator<String> keys = hmAllFilesR.keySet().iterator();

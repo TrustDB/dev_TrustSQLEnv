@@ -4,6 +4,7 @@ export CLASSPATH="./bin:./libs/log4j-api-2.14.1.jar:./log4j-core-2.14.1.jar:./li
 rdlms_version="v0.1"
 
 find ./src -name *.java -print > compiletarget.txt
+rm -r ./bin/org
 javac -d ./bin @compiletarget.txt
 
 cd bin

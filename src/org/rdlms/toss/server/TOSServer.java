@@ -129,7 +129,7 @@ public class TOSServer {
 					addrs[counter]=addr;
 				}
 				sc.whiltelistAddrs = addrs;				
-				hmAllTopicsConfig.put(pattern,sc);
+				hmAllTopicsConfig.put(pattern.toLowerCase(),sc);
 			}			  	
 		} catch(Exception e) {
 			e.printStackTrace();

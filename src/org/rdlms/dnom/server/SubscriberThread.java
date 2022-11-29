@@ -195,8 +195,9 @@ class SubscriberThread extends Thread{
 				// 4. get new tables from TTOB.
 				//System.out.println("4. // 4. get new tables from TTOB.");
 				TOSSConnector.ServiceInfo serviceInfo = ttobConnector.getServiceInfo(serviceConfig.serviceName);
-				if(serviceInfo.tableName.length ==0) {
-					//	log.error("Not supported servcie");
+				
+				if(serviceInfo==null) {
+					log.info("Not supported servcie");
 					continue;
 				}
 

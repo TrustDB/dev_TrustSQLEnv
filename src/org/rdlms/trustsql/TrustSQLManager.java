@@ -45,10 +45,10 @@ public class TrustSQLManager {
 		//System.out.println(tosTransaction.toString());
 
         try{
-			log.info("start");
+			log.info("NEW.T (OIS="+tosTransaction.order_in_service+",OIT="+tosTransaction.order_in_table+")");
             pstmt = dbCon.prepareStatement(tosTransaction.stamped_transaction);
             rs = pstmt.executeQuery();		
-			log.info("end");
+			//log.info("end");
             sqlErrorCode=0;
         } catch(SQLException sqlE) {
             //sqlE.printStackTrace();
@@ -401,8 +401,9 @@ public class TrustSQLManager {
 		String strStmt; 
 		int rowCount;
 		try { 			
-			strStmt = "SELECT TABLE_NAME, ORDER_COLUMN FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='"+serviceName+"' AND TABLE_NAME NOT LIKE '%error' AND ORDER_COLUMN IS NOT NULL;";
+			strStmt = "SELECT TABLE_NAME, ORDER_COLUMN FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='"+serviceName+"' AND TABLE_NAME NOT LIKE '%error' AND TRUSTED_TYPE=2;";
 			pstmt = dbCon.prepareStatement(strStmt);
+			log.trace(strStmt);
 			rs = pstmt.executeQuery();						
 			rs.last();
 			rowCount= rs.getRow();
@@ -440,6 +441,7 @@ public class TrustSQLManager {
 		try { 			
 			strStmt = "SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA='"+serviceName+"';";
 			pstmt = dbCon.prepareStatement(strStmt);
+			log.trace(strStmt);
 			rs = pstmt.executeQuery();						
 			rs.last();
 			rowCount= rs.getRow();
@@ -485,6 +487,7 @@ public class TrustSQLManager {
 				strStmt = "SELECT COUNT(A."+value+") FROM "+serviceName+"."+key+" A ";
 				strStmt+= "LEFT JOIN "+serviceName+"."+key+"_error B ON A."+value+" = B.GID WHERE B.GID is NULL; ";
 				pstmt = dbCon.prepareStatement(strStmt);
+				log.trace(strStmt);
 				rs = pstmt.executeQuery();
 				//log.trace("strStmt="+strStmt);
 				while(rs.next()) {
@@ -496,7 +499,8 @@ public class TrustSQLManager {
 				
 				strStmt = "SELECT COUNT(B.GID) FROM "+serviceName+"."+key+" A ";
 				strStmt+= "RIGHT JOIN "+serviceName+"."+key+"_error B ON A."+value+" = B.GID WHERE A."+value+" is NULL;";				
-				pstmt = dbCon.prepareStatement(strStmt);				
+				pstmt = dbCon.prepareStatement(strStmt);	
+				log.trace(strStmt);			
 				rs = pstmt.executeQuery();
 				//log.trace("strStmt="+strStmt);
 				while(rs.next()) {

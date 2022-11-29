@@ -350,6 +350,7 @@ public class TOSSConnector implements TOSSInterface{
 		//System.out.println("@P1 KEY ="+key);  	
 		//System.out.println("@P2 fromOrder ="+fromOrder);  	
 		//System.out.println("@P1 toOrder ="+toOrder);
+		//log.trace("SEND [GetTransactions] - "+key+" from = "+fromOrder+" to = "+toOrder);
 		try {
 			int keyLength = key.getBytes().length;
 			byte[] cmdHeader = new byte[36];
@@ -385,7 +386,7 @@ public class TOSSConnector implements TOSSInterface{
 	*@return TosTransaction[]	TOSS
 	*/  					  	  
 	private TOSTransaction[] recvTransactions(String fullTopicStr) throws Exception {		
-		//System.out.println("\nRECV [Transactions]-------------------------------------");  	
+		//System.out.println("\nRECV [Transactions]-------------------------------------"); 
 		TOSTransaction[] tosTransactions;
 		
 		try {
@@ -402,7 +403,7 @@ public class TOSSConnector implements TOSSInterface{
 			}	
 			//System.out.println("HEADER="+ArrayUtil.toHex(cmdHeader));
 			
-			log.debug("RECV [Transactions] n("+transactionNo+")");
+			log.debug("RECV [Transactions] - "+fullTopicStr+" n("+transactionNo+")");
 
 			tosTransactions = new TOSTransaction[transactionNo];
 			for(int i=0; i<transactionNo; i++) tosTransactions[i]= new TOSTransaction();
@@ -466,7 +467,7 @@ public class TOSSConnector implements TOSSInterface{
 		// MAGIC_CODE ( Magic )
 		//System.out.println("\nSEND [GetServiceInfo]-------------------------------------");  	
 		//System.out.println("serviceName = "+serviceName);
-		log.debug("SEND [GetServiceInfo]");
+		log.debug("SEND [GetServiceInfo] - "+serviceName);
 		try {  	
 			byte[] cmdHeader = new byte[36];
 			byte[] baCmd = "GetServiceInfo".getBytes();
@@ -511,23 +512,23 @@ public class TOSSConnector implements TOSSInterface{
 			byte[] cmd = new byte[24];
 			System.arraycopy(cmdHeader,4,cmd,0,24);
 			String commandStr = new String(cmd);
-			////System.out.println("command = "+commandStr);
 			int payloadLen = ArrayUtil.BAToInt(cmdHeader,28);
 			int checksum = ArrayUtil.BAToInt(cmdHeader,32);
 			
+			if(payloadLen==0) {
+				return null;
+			}
+
 			// Receive Command Body
 			byte[] cmdBody = read(payloadLen);
 			short serviceNameLen = (short)ArrayUtil.BAToShort(cmdBody,0);
-			//System.out.println("serviceNameLen="+serviceNameLen);
 			byte[] baServiceName = new byte[serviceNameLen];
 			System.arraycopy(cmdBody,2,baServiceName,0,serviceNameLen);
 			serviceInfo.serviceName = new String(baServiceName);
-			//System.out.println("Service Name="+serviceInfo.serviceName);
 			
 			serviceInfo.datFileSizeMB = (short) ArrayUtil.BAToShort(cmdBody,0+2+serviceNameLen);
 			serviceInfo.maxDownloadTransactions = ArrayUtil.BAToInt(cmdBody,0+2+serviceNameLen+2);
 			short tableNo = (short) ArrayUtil.BAToShort(cmdBody,0+2+serviceNameLen+2+4);
-			//System.out.println("Table No="+tableNo);
 			
 			serviceInfo.tableName = new String[tableNo];
 			int offset = 0+2+serviceNameLen+2+4+2;
@@ -537,8 +538,6 @@ public class TOSSConnector implements TOSSInterface{
 				offset+=2;
 				System.arraycopy(cmdBody,offset,baTemp,0,tnLen);
 				serviceInfo.tableName[i] = new String(baTemp).trim();
-				//System.out.println("["+i+"] Table Name = "+serviceInfo.tableName[i]);			
-				//System.out.println(ArrayUtil.toHex(baTemp));
 				offset+=tnLen;    				
 			}
 		} catch (SocketException se) {
