@@ -183,11 +183,24 @@ class SubscriberThread extends Thread{
 				//retCode= saveAndInsertTOSTransactions(dbCon, globalServiceName, tosTransactions);
 
 				boolean bRet;
+
+				// TODO.여기에 BatchInsert 기능을 넣어주자. 그럼 빨라지겠지. --------- 작업 중.시작
+				if(tosTransactions.length>1) {					
+					bRet=MessageManager.saveTranactions(log, publicDnomParameters.dataFolderPath, publicDnomParameters.dataFileSizeMB, hmAllFiles, tosTransactions); 			
+					Assert.assertTrue(bRet=true,"Can't save raw messages to storage ! \n"); 
+					if(bRet==true) {
+						retCode=TrustSQLManager.executeBatchStatement(log, hmAllErrorCodes, dbCon, tosTransactions, false);
+						Assert.assertTrue(retCode==0,"Message Statement Excecution Failed! \n"); 
+					}
+				}
+
+				// ------------------------ 작업 중..끝
+
 				for(int i=0; i<tosTransactions.length; i++) {
 					bRet=MessageManager.saveTranaction(log, publicDnomParameters.dataFolderPath, publicDnomParameters.dataFileSizeMB, hmAllFiles, tosTransactions[i]); 			
 					if(bRet==true) {
 						retCode=TrustSQLManager.executeStatement(log, hmAllErrorCodes, dbCon, tosTransactions[i], false);
-						Assert.assertTrue(retCode==0,"Message Statement Excecution Failed! \n"+tosTransactions[i].stamped_transaction); 
+						Assert.assertTrue(retCode==0,"Message Statement Excecution Failed! \n"); 
 					}
 				}
 				//System.out.println("Last serviceOrderInfo.order_in_service="+serviceOrderInfo.order_in_service);

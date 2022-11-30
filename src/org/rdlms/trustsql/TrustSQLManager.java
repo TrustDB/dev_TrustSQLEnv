@@ -27,9 +27,107 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.log4j.Logger;
 import org.rdlms.messagestorage.model.TOSTransaction;
 import org.rdlms.util.ArrayUtil;
+import org.rdlms.util.Assert;
 
 public class TrustSQLManager {
+	
+	/**
+	* Batch Insert기능을 수행한다.
+	* TOSTRansaction.gt_name이 같아야 Batch가 동작하는 것이다. 거의 같음. 
+	* 만일 다르다면 .Batch Insert 단건이지 머.
+	* @param	dbConnection, table name, gid, sql error...
+	* @return	
+	*/
+	public static int executeBatchStatement(Logger log, ConcurrentHashMap<String, Integer> hmAllErrorCodes, Connection dbCon, TOSTransaction[] tosTransactions, boolean dup_ignore) {
+        PreparedStatement pstmt = null; 
+		ResultSet rs = null;
+        int sqlErrorCode;
+        String sqlState=null;
+        String sqlMsg=null;
+		System.out.println("TRSUTSQL [BATCH EXECUTION] --------------------");
+		// INSERT INTO TRANSACTIONS_mytoken (TORDER_NUM,TORDER_NONCE,SENDER,AMOUNT,RECEIVER,SENDER_SIGN,TORDER_TIME,TORDER_SIGN) values (a,b,c,d);";
+		// BATCH INSERT
+		// INSERT INTO TRANSACTIONS_mytoken (TORDER_NUM,TORDER_NONCE,SENDER,AMOUNT,RECEIVER,SENDER_SIGN,TORDER_TIME,TORDER_SIGN) values (a,b,c,d),(a1,b1,c1,d1);";
 		
+		//TODO Create문은 처리 하지 않는다. 오케? //대소문자 values VaLueS 이거 처리 해야 함. 
+
+		String 	gt_name="";
+		String 	fullSql;		
+		String  sqlParts[];
+		String  sqlBody=null;		
+		StringBuffer valueBuffer = new StringBuffer();		
+		int		checkPoint;
+		/*
+		아.. 쉽지 않네.. 이거.. 잘 생각해야 하네..
+
+		A table 100개 나오고
+		B table 50개 나왔는데, B에서 에러 나왔어.
+		그럼 B부터 해야 하잖아. 하나씩.. 이논리를 만들어야 함.  check Point 개념으로.. 
+		*/
+		checkPoint=0;
+		try{
+			for(int i=0; i<tosTransactions.length; i++) {
+				if(gt_name.equals(tosTransactions[i].gt_name)) {
+					fullSql = tosTransactions[i].stamped_transaction;
+					System.out.println("GT_NAME="+tosTransactions[i].gt_name+" transaction="+fullSql);
+					fullSql = fullSql.replaceAll(" values"," VALUES");
+					sqlParts = fullSql.split(" VALUES");
+					// TODO 일단 지금은 DDL은 안되는 걸로 만들어 놓자. 
+					Assert.assertTrue(sqlParts.length==2, "MULTI MESSAGE - DDL? "+"New GT_NAME="+tosTransactions[i].gt_name+" transaction="+fullSql);
+					sqlParts[1] = sqlParts[1].replaceAll(";","");
+					valueBuffer.append(sqlParts[1]);
+					System.out.println(" append = "+sqlParts[1]);
+				} else {
+					if(sqlBody!=null) {
+						// Table이 변경되었다. 그리고 이전에 SQL문이 있었다면 SQL문을 INSERT보내자.					
+						log.info("NEW.T (OIS="+tosTransactions[i].order_in_service+",OIT="+tosTransactions[i].order_in_table+")");
+						pstmt = dbCon.prepareStatement(sqlBody+valueBuffer.toString());
+						rs = pstmt.executeQuery();		
+						log.info("success");
+						sqlErrorCode=0;
+						checkPoint = i; // CheckPoint이다. 
+					}
+
+					// New gt name.
+					sqlBody=null;
+					valueBuffer.delete(0, valueBuffer.length());
+					fullSql = tosTransactions[i].stamped_transaction;
+					System.out.println("New GT_NAME="+tosTransactions[i].gt_name+" transaction="+fullSql);
+					fullSql = fullSql.replaceAll(" values"," VALUES");
+					
+					sqlParts = fullSql.split(" VALUES");
+					// TODO 일단 지금은 DDL은 안되는 걸로 만들어 놓자. 
+					Assert.assertTrue(sqlParts.length==2, "MULTI MESSAGE - DDL? "+"New GT_NAME="+tosTransactions[i].gt_name+" transaction="+fullSql);
+					sqlParts[1] = sqlParts[1].replaceAll(";","");
+
+					sqlBody = sqlParts[0] + " VALUES ";
+					valueBuffer.append(sqlParts[1]);
+				}
+				// 헛.. 이것도 해줘야 하네..
+				if(hmAllErrorCodes!=null) {
+					synchronized(hmAllErrorCodes) {					
+						hmAllErrorCodes.put(tosTransactions[i].gt_name+"/"+tosTransactions[i].order_in_table,0);						
+					}	
+				}
+			}		
+		} catch(SQLException sqlE) {
+            //sqlE.printStackTrace();
+            sqlErrorCode = sqlE.getErrorCode();
+            sqlState = sqlE.getSQLState();
+            sqlMsg = sqlE.getMessage();
+			log.error("------------------------------------------------------------------------------------------");
+			log.error("------------------------------------------------------------------------------------------");
+			return checkPoint;
+        } catch(Exception e1) {
+            //e1.printStackTrace();
+			log.error("------------------------------------------------------------------------------------------");
+			log.error("------------------------------------------------------------------------------------------");						
+            return checkPoint;
+        }				
+        return 0;
+    }
+
+
     /**
 	* insert SQL Error .
 	* @param	dbConnection, table name, gid, sql error...
@@ -48,7 +146,7 @@ public class TrustSQLManager {
 			log.info("NEW.T (OIS="+tosTransaction.order_in_service+",OIT="+tosTransaction.order_in_table+")");
             pstmt = dbCon.prepareStatement(tosTransaction.stamped_transaction);
             rs = pstmt.executeQuery();		
-			//log.info("end");
+			log.info("success");
             sqlErrorCode=0;
         } catch(SQLException sqlE) {
             //sqlE.printStackTrace();

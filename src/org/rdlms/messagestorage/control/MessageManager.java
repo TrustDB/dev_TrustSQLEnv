@@ -321,6 +321,21 @@ public class MessageManager {
 		return serviceOrderInfo;        
 	}    
 
+	/**	
+	* Save multiple messages permenantly.
+	*		
+	* @param	TOSTransaction[]
+	* @param	payload (stamped_transaction)
+	* @reutrn	true : success, false : fail
+	*/
+	public static boolean saveTranactions(Logger log, String dataFolderPath, int maxFileSizeMB, ConcurrentHashMap<String,RandomAccessFile> hmAllFilesRW, TOSTransaction[] tosTransactions) { 			
+		boolean bRet=true;
+		for(int i=0; i<tosTransactions.length; i++) {
+			bRet=MessageManager.saveTranaction(log, dataFolderPath, maxFileSizeMB, hmAllFilesRW, tosTransactions[i]); 	
+		}	
+
+		return true;
+	}
     
 	/**	
 	* Save message permenantly.
